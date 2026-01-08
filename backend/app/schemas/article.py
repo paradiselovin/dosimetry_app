@@ -1,6 +1,13 @@
 from pydantic import BaseModel
+from typing import Optional
 
 class ArticleCreate(BaseModel):
-    article_id: int
     title: str
+    authors: Optional[str] = None
     doi: str
+
+class ArticleOut(ArticleCreate):
+    article_id: int
+
+    class Config:
+        orm_mode = True
