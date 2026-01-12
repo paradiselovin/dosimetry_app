@@ -2,6 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.experience import Experience
+from app.models.experience_machine import ExperienceMachine
+from app.models.experience_phantom import ExperiencePhantom
+from app.models.experience_detector import ExperienceDetector
 from app.models.article import Article
 from app.schemas.experience import ExperienceCreate
 
@@ -36,3 +39,11 @@ def create_experience(experience: ExperienceCreate, db: Session = Depends(get_db
 @router.get("/")
 def list_experiences(db: Session = Depends(get_db)):
     return db.query(Experience).all()
+
+@router.get("/{experiment_id}/summary")
+def get_experiment_summary(experiment_id: int, db: Session = Depends(get_db)):
+    return {
+        "machines": db.query(ExperienceMachine).filter_by(experiment_id=experiment_id).all(),
+        "phantoms": db.query(ExperiencePhantom).filter_by(experiment_id=experiment_id).all(),
+        "detectors": db.query(ExperienceDetector).filter_by(experiment_id=experiment_id).all(),
+    }

@@ -2,8 +2,27 @@
 from fastapi import FastAPI
 
 from app.database import engine, Base
-from app.models import article, experience, donnee
-from app.routes import articles, experiences, files, donnees
+from app.models import (
+    article,
+    experience,
+    donnee,
+    detector,
+    machine,
+    phantom,
+    )
+from app.routes import (
+    articles,
+    experiences,
+    files,
+    donnees,
+    detectors,
+    experience_detectors,
+    machines,
+    experience_machines,
+    phantoms,
+    experience_phantoms
+)
+
 
 app = FastAPI(title="Dosimetry Database API")
 
@@ -19,3 +38,17 @@ app.include_router(donnees.router)
 @app.get("/")
 def root():
     return {"status": "API running"}
+
+
+from app.routes import (
+    machines,
+    phantoms,
+    detectors,
+)
+
+app.include_router(machines.router)
+app.include_router(phantoms.router)
+app.include_router(detectors.router)
+app.include_router(experience_machines.router)
+app.include_router(experience_phantoms.router)
+app.include_router(experience_detectors.router)
