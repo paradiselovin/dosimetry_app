@@ -1,5 +1,6 @@
 # Entry point for the FastAPI
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine, Base
 from app.models import (
@@ -25,6 +26,15 @@ from app.routes import (
 
 
 app = FastAPI(title="Dosimetry Database API")
+
+# Creating a CORS middleware to adapt configurations from Flutter to FastAPI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # dev uniquement
+    allow_credentials=True,
+    allow_methods=["*"],  # IMPORTANT (inclut OPTIONS)
+    allow_headers=["*"],
+)
 
 # Creating tables
 Base.metadata.create_all(bind=engine)
