@@ -31,7 +31,7 @@ app = FastAPI(title="Dosimetry Database API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # dev uniquement
-    allow_credentials=True,
+    allow_credentials=False,  # dev uniquement
     allow_methods=["*"],  # IMPORTANT (inclut OPTIONS)
     allow_headers=["*"],
 )

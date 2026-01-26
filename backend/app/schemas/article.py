@@ -1,3 +1,4 @@
+import re
 from pydantic import BaseModel, Field, validator
 from typing import Optional
 
@@ -8,8 +9,9 @@ class ArticleCreate(BaseModel):
 
     @validator("doi")
     def doi_format(cls, v):
-        if "/" not in v:
-            raise ValueError("Invalid DOI format")
+        pattern = r"^10\.[^/]+/.+$"
+        if not re.match(pattern, v):
+            raise ValueError("Invalid DOI format (expected: 10.xxxx/xxxx)")
         return v
 
 class ArticleOut(ArticleCreate):

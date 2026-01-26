@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../utils/snackbar_utils.dart';
+import 'experience_screen.dart';
 
 class ArticleScreen extends StatefulWidget {
   const ArticleScreen({Key? key}) : super(key: key);
@@ -18,9 +20,7 @@ class _ArticleScreenState extends State<ArticleScreen> {
   final ApiService api = ApiService();
 
   void _submit() async {
-    if (!_formKey.currentState!.validate()) {
-      return; // stop si formulaire invalide
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     final result = await api.createArticle({
       "title": _titleController.text,
@@ -28,12 +28,22 @@ class _ArticleScreenState extends State<ArticleScreen> {
       "doi": _doiController.text,
     });
 
+    if (!mounted) return;
+
     if (result["success"]) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Article créé avec succès"),
-          backgroundColor: Colors.green,
-        ),
+      final articleId = result["data"]["article_id"];
+
+      showSuccessSnackBar(
+        context: context,
+        message: "Article créé avec succès",
+        onContinue: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ExperienceScreen(articleId: articleId),
+            ),
+          );
+        },
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -58,38 +68,22 @@ class _ArticleScreenState extends State<ArticleScreen> {
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(labelText: "Titre *"),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return "Le titre est obligatoire";
-                  }
-                  return null;
-                },
+                validator: (v) =>
+                    v == null || v.isEmpty ? "Champ obligatoire" : null,
               ),
-
               TextFormField(
                 controller: _authorsController,
                 decoration: const InputDecoration(labelText: "Auteurs *"),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return "Les auteurs sont obligatoires";
-                  }
-                  return null;
-                },
+                validator: (v) =>
+                    v == null || v.isEmpty ? "Champ obligatoire" : null,
               ),
-
               TextFormField(
                 controller: _doiController,
                 decoration: const InputDecoration(labelText: "DOI *"),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return "Le DOI est obligatoire";
-                  }
-                  return null;
-                },
+                validator: (v) =>
+                    v == null || v.isEmpty ? "Champ obligatoire" : null,
               ),
-
               const SizedBox(height: 20),
-
               ElevatedButton(
                 onPressed: _submit,
                 child: const Text("Créer l'article"),

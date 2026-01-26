@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DatabaseError
 
 from app.database import SessionLocal
 from app.models.article import Article
@@ -31,11 +31,11 @@ def create_article(article: ArticleCreate, db: Session = Depends(get_db)):
 
     try:
         db.commit()
-    except IntegrityError:
+    except DatabaseError:
         db.rollback()
         raise HTTPException(
             status_code=409,
-            detail="Article already exists (DOI already in database)"
+            detail="Database Error"
         )
 
     db.refresh(db_article)
