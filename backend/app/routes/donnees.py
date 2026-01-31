@@ -1,9 +1,12 @@
 import os
-from fastapi import APIRouter, UploadFile, File, Form, Depends
+import shutil
+from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import DatabaseError
 
 from app.database import SessionLocal
 from app.models.donnee import Donnee
+from app.schemas.donnee import DonneeCreate
 
 router = APIRouter(prefix="/donnees", tags=["Donnees"])
 
@@ -17,7 +20,7 @@ def get_db():
     finally:
         db.close()
 
-@router.post("/upload/{experiment_id}")
+@router.post("/upload/{experiment_id}", status_code=status.HTTP_201_CREATED)
 def upload_donnee(
     experiment_id: int,
     file: UploadFile = File(...),
@@ -26,26 +29,45 @@ def upload_donnee(
     description: str = Form(None),
     db: Session = Depends(get_db),
 ):
-    file_path = f"{UPLOAD_DIR}/{experiment_id}_{file.filename}"
+    donnee_data = DonneeCreate(
+        data_type=data_type,
+        unit=unit,
+        file_format=file.filename.split(".")[-1],
+        description=description,
+    )
 
     # Saving the file
-    with open(file_path, "wb") as f:
-        f.write(file.file.read())
+    file_path = f"{UPLOAD_DIR}/{experiment_id}_{file.filename}"
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
 
     # Database insertion
     donnee = Donnee(
         experiment_id=experiment_id,
-        data_type=data_type,
-        unit=unit,
-        file_format=file.filename.split(".")[-1],
+        data_type=donnee_data.data_type,
+        unit=donnee_data.unit,
+        file_format=donnee_data.file_format,
         file_path=file_path,
-        description=description,
+        description=donnee_data.description,
     )
 
     db.add(donnee)
-    db.commit()
-    db.refresh(donnee)
+    try:
+        db.commit()
+    except DatabaseError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Database Error"
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+    )
 
+    db.refresh(donnee)
     return donnee
 
 @router.get("/")

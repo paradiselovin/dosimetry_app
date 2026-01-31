@@ -9,11 +9,14 @@ class DonneeCreate(BaseModel):
 
     @validator("unit")
     def check_unit(cls, v):
+        if v is None:
+            return v
+        v = v.strip()
         allowed = {"Gy", "mGy", "cGy"}
-        if v and v not in allowed:
+        if v not in allowed:
             raise ValueError(f"Unité invalide : {v}")
         return v
-
+        
 class DonneeOut(DonneeCreate):
     data_id: int
     experiment_id: int

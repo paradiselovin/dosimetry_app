@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import DatabaseError
+
 from app.database import SessionLocal
 from app.models.experience import Experience
 from app.models.experience_machine import ExperienceMachine
@@ -17,8 +19,9 @@ def get_db():
     finally:
         db.close()
 
-@router.post("/")
+@router.post("/", status_code=status.HTTP_201_CREATED)
 def create_experience(experience: ExperienceCreate, db: Session = Depends(get_db)):
+
     # Verifying that the article exists in the database
     article = db.query(Article).filter(
         Article.article_id == experience.article_id
@@ -32,7 +35,16 @@ def create_experience(experience: ExperienceCreate, db: Session = Depends(get_db
         article_id=experience.article_id
     )
     db.add(db_experience)
-    db.commit()
+
+    try:
+        db.commit()
+    except DatabaseError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Database Error"
+        )
+    
     db.refresh(db_experience)
     return db_experience
 
