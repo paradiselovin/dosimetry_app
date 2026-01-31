@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../utils/snackbar_utils.dart';
-import 'experience_screen.dart';
+import 'experience_wizard_screen.dart';
 
 class ArticleScreen extends StatefulWidget {
   const ArticleScreen({Key? key}) : super(key: key);
@@ -20,19 +20,28 @@ class _ArticleScreenState extends State<ArticleScreen> {
   final ApiService api = ApiService();
 
   void _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    print("Submit button clicked!");
+    if (!_formKey.currentState!.validate()) {
+      print("Validation failed");
+      return;
+    }
 
+    print(
+      "Calling API with data: title=${_titleController.text}, authors=${_authorsController.text}, doi=${_doiController.text}",
+    );
     final result = await api.createArticle({
       "title": _titleController.text,
       "authors": _authorsController.text,
       "doi": _doiController.text,
     });
 
+    print("API result: $result");
+
     if (!mounted) return;
 
     if (result["success"]) {
       final articleId = result["data"]["article_id"];
-
+      print("Article created with ID $articleId");
       showSuccessSnackBar(
         context: context,
         message: "Article créé avec succès",
@@ -40,12 +49,13 @@ class _ArticleScreenState extends State<ArticleScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => ExperienceScreen(articleId: articleId),
+              builder: (_) => ExperienceWizardScreen(articleId: articleId),
             ),
           );
         },
       );
     } else {
+      print("Error: ${result['message']}");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result["message"]),

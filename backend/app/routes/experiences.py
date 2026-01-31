@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import DatabaseError
+from sqlalchemy.exc import IntegrityError
 
 from app.database import SessionLocal
 from app.models.experience import Experience
@@ -12,6 +12,7 @@ from app.schemas.experience import ExperienceCreate
 
 router = APIRouter(prefix="/experiences", tags=["Experiences"])
 
+# --- Dependency pour la DB ---
 def get_db():
     db = SessionLocal()
     try:
@@ -19,17 +20,18 @@ def get_db():
     finally:
         db.close()
 
+
+# --- Create Experience ---
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def create_experience(experience: ExperienceCreate, db: Session = Depends(get_db)):
-
-    # Verifying that the article exists in the database
+    # Vérifie que l'article existe
     article = db.query(Article).filter(
         Article.article_id == experience.article_id
     ).first()
 
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
-    
+
     db_experience = Experience(
         description=experience.description,
         article_id=experience.article_id
@@ -38,24 +40,98 @@ def create_experience(experience: ExperienceCreate, db: Session = Depends(get_db
 
     try:
         db.commit()
-    except DatabaseError:
+    except IntegrityError:
         db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="Database Error"
-        )
-    
-    db.refresh(db_experience)
-    return db_experience
+        raise HTTPException(status_code=409, detail="Database conflict")
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
+    db.refresh(db_experience)
+
+    return {
+        "experiment_id": db_experience.experiment_id,
+        "description": db_experience.description,
+        "article_id": db_experience.article_id
+    }
+
+
+# --- List all Experiences ---
 @router.get("/")
 def list_experiences(db: Session = Depends(get_db)):
-    return db.query(Experience).all()
+    experiences = db.query(Experience).all()
+    return [
+        {
+            "experiment_id": e.experiment_id,
+            "description": e.description,
+            "article_id": e.article_id
+        }
+        for e in experiences
+    ]
 
+
+# --- Get Summary for Wizard ---
 @router.get("/{experiment_id}/summary")
 def get_experiment_summary(experiment_id: int, db: Session = Depends(get_db)):
+    experience = db.query(Experience).filter(
+        Experience.experiment_id == experiment_id
+    ).first()
+
+    if not experience:
+        raise HTTPException(status_code=404, detail="Expérience non trouvée")
+
+    # Machines associées
+    machines = [
+        {
+            "manufacturer": m.machine.manufacturer,
+            "model": m.machine.model,
+            "machine_type": m.machine.machine_type,
+            "energy": m.energy,
+            "collimation": m.collimation,
+            "settings": m.settings,
+        }
+        for m in experience.machines
+    ]
+
+    # Phantoms associés
+    phantoms = [
+        {
+            "name": p.phantom.name,
+            "phantom_type": p.phantom.phantom_type,
+            "dimensions": p.phantom.dimensions,
+            "material": p.phantom.material,
+        }
+        for p in experience.phantoms
+    ]
+
+    # Détecteurs associés
+    detectors = [
+        {
+            "detector_type": d.detector.detector_type,
+            "model": d.detector.model,
+            "manufacturer": d.detector.manufacturer,
+            "position": d.position,
+            "depth": d.depth,
+            "orientation": d.orientation,
+        }
+        for d in experience.detectors
+    ]
+
+    # Données uploadées
+    data_files = [
+        {
+            "file_name": f.file_name,
+            "data_type": f.data_type,
+            "unit": f.unit,
+            "description": f.description,
+        }
+        for f in experience.donnees
+    ]
+
     return {
-        "machines": db.query(ExperienceMachine).filter_by(experiment_id=experiment_id).all(),
-        "phantoms": db.query(ExperiencePhantom).filter_by(experiment_id=experiment_id).all(),
-        "detectors": db.query(ExperienceDetector).filter_by(experiment_id=experiment_id).all(),
+        "description": experience.description,
+        "machines": machines,
+        "phantoms": phantoms,
+        "detectors": detectors,
+        "data": data_files,
     }
